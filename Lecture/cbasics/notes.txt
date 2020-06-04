@@ -1,0 +1,3 @@
+malloc, calloc, realloc -> they're usually on the heap
+
+
