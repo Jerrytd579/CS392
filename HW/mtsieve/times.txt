@@ -1,0 +1,21 @@
+./mtsieve -s100 -e200000000 -t1 : 0m3.015s
+./mtsieve -s100 -e200000000 -t2 : 0m2.534s
+./mtsieve -s100 -e200000000 -t3 : 0m2.426s
+./mtsieve -s100 -e200000000 -t4 : 0m2.431s
+./mtsieve -s100 -e200000000 -t5 : 0m2.392s
+./mtsieve -s100 -e200000000 -t6 : 0m2.352s
+./mtsieve -s100 -e200000000 -t7 : 0m2.277s
+./mtsieve -s100 -e200000000 -t8 : 0m2.310s
+
+
+Intel(R) Core(TM) i7-7700K CPU @ 4.20GHz
+
+Based on my findings, the increase of the number of threads loosely
+corresponds to an improvement in time. However, in some cases, such
+as the jump from 7 to 8 threads and the jump from 3 to 4 threads, there
+was actually a negative impact in time. However, both 8 and 7 threads
+had better performance than 3 to 4 threads. 
+
+While there was a drastic improvement between 1 and 2 threads,
+further increasing the number of threads had diminishing returns.
+In short, based on this trend, time improvement will plateau.

@@ -27,6 +27,45 @@ typedef struct arg_struct {
 } thread_args;
 
 /**
+ * Determines whether or not the input string represents a valid integer.
+ * A valid integer has an optional minus sign, followed by a series of digits
+ * [0-9].
+ */
+bool is_integer(char *input) {
+    int start = 0, len = strlen(input);
+
+    if (len >= 1 && input[0] == '-') {
+        if (len < 2)
+            return false;
+        start = 1;
+    }
+    for (int i = start; i < len; i++) {
+        if (!isdigit(input[i]))
+            return false;
+    }
+    return true;
+}
+
+/**
+ * Takes as input a string and an in-out parameter value.
+ * If the string can be parsed, the integer value is assigned to the value
+ * parameter and true is returned.
+ * Otherwise, false is returned and the best attempt to modify the value
+ * parameter is made.
+ */
+bool get_integer(char *input, int *value) {
+    long long long_long_i;
+    if (sscanf(input, "%lld", &long_long_i) != 1)
+        return false;
+    
+    *value = (int)long_long_i;
+    if (long_long_i != (long long)*value)
+        return false;
+
+    return true;
+}
+
+/**
  * Sieve of Eratosthenes implementation
  */
 void *sieve(void *ptr){
@@ -42,6 +81,7 @@ void *sieve(void *ptr){
     memset(prime, true, sizeof(prime));
 
     // Standard sieve
+    // Taken from GeeksforGeeks
     for(int i = 2; i*i <= n; i++){
         if(prime[i] == true){
             for(int j = i*i; j <= n; j += i)
@@ -57,7 +97,10 @@ void *sieve(void *ptr){
     }
 
     bool *high_primes;
-    high_primes = (bool *)malloc((b-a+1) * sizeof(bool));
+    if((high_primes = (bool *)malloc((b-a+2) * sizeof(bool))) == NULL){
+        fprintf(stderr, "Error: malloc() failed. %s.\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
     memset(high_primes, true, (b-a+1) * sizeof(bool));
     
     for(int i = 0; i < n-1; i++){
@@ -71,7 +114,8 @@ void *sieve(void *ptr){
         }
     }
 
-    // Finding the '3' digit
+    // Finding digits that are 3
+    // Stack Overflow: https://stackoverflow.com/questions/3118490/getting-each-individual-digit-from-a-whole-integer
     for(int i = 0; i < b-a+1; i++){
         if(high_primes[i] == true){
             int digit = 0;
@@ -88,8 +132,6 @@ void *sieve(void *ptr){
         }
     }
 
-    free(high_primes);
-
     int retval;
     if((retval = pthread_mutex_lock(&lock)) != 0)
         fprintf(stderr, "Warning: Cannot lock mutex. %s.\n", strerror(retval));
@@ -99,6 +141,7 @@ void *sieve(void *ptr){
     if((retval = pthread_mutex_unlock(&lock)) != 0)
         fprintf(stderr, "Warning: Cannot unlock mutex. %s.\n", strerror(retval));
 
+    free(high_primes);
     pthread_exit(NULL);
 }
 
@@ -110,91 +153,40 @@ int main(int argc, char *argv[]) {
 
     int useopt = 0, start = 0, end = 0, num_threads = 0;
     int eflag = 0, sflag = 0, tflag = 0;
-    while((useopt = getopt(argc, argv, ":e:s:t:")) != -1){
-        bool is_digit;
+    opterr = 0;
+    while((useopt = getopt(argc, argv, "s:e:t:")) != -1){
         switch(useopt){
-            case 'e':
-                is_digit = true;
-                for(int i = 0; i < strlen(optarg); i++){
-                    if(!isdigit(optarg[i]))
-                        is_digit = false;
-                }
-                if(is_digit == false){
+            case 's':
+                sflag = 1;
+                if(!is_integer(optarg)){
                     fprintf(stderr, "Error: Invalid input '%s' received for parameter '-%c'.\n", optarg, useopt);
                     return EXIT_FAILURE;
                 }
-                else{
-                    end = atoi(optarg);
-                    eflag = 1;
-
-                    int temp = end;
-                    int remainder = 0;
-                    while(temp > 0){
-                        remainder = temp % 10;
-                        remainder++;
-                        temp /= 10;
-                    }
-                    
-                    if(remainder > INT_MAX || end < 0){
-                        fprintf(stderr, "Error: Integer overflow for parameter '-%c'.\n", useopt);
-                        return EXIT_FAILURE;
-                    }
+                else if(!get_integer(optarg, &start)){
+                    fprintf(stderr, "Error: Integer overflow for parameter '-%c'.\n", useopt);
+                    return EXIT_FAILURE;
                 }
                 break;
-            case 's':
-                is_digit = true;
-                for(int i = 0; i < strlen(optarg); i++){
-                    if(!isdigit(optarg[i]))
-                        is_digit = false;
-                }
-                if(is_digit == false){
+            case 'e':
+                eflag = 1;
+                if(!is_integer(optarg)){
                     fprintf(stderr, "Error: Invalid input '%s' received for parameter '-%c'.\n", optarg, useopt);
                     return EXIT_FAILURE;
                 }
-                else{
-                    start = atoi(optarg);
-                    sflag = 1;
-
-                    int temp = start;
-                    int remainder = 0;
-                    while(temp > 0){
-                        remainder = temp % 10;
-                        remainder++;
-                        temp /= 10;
-                    }
-                    
-                    if(remainder > INT_MAX){
-                        fprintf(stderr, "Error: Integer overflow for parameter '-%c'.\n", useopt);
-                        return EXIT_FAILURE;
-                    }
+                else if(!get_integer(optarg, &end)){
+                    fprintf(stderr, "Error: Integer overflow for parameter '-%c'.\n", useopt);
+                    return EXIT_FAILURE;
                 }
                 break;
             case 't':
-                is_digit = true;
-                for(int i = 0; i < strlen(optarg); i++){
-                    if(!isdigit(optarg[i]))
-                        is_digit = false;
-                }
-                if(is_digit == false){
+                tflag = 1;
+                if(!is_integer(optarg)){
                     fprintf(stderr, "Error: Invalid input '%s' received for parameter '-%c'.\n", optarg, useopt);
                     return EXIT_FAILURE;
                 }
-                else{
-                    num_threads = atoi(optarg);
-                    tflag = 1;
-
-                    int temp = num_threads;
-                    int remainder = 0;
-                    while(temp > 0){
-                        remainder = temp % 10;
-                        remainder++;
-                        temp /= 10;
-                    }
-                    
-                    if(remainder > INT_MAX || num_threads < 0){
-                        fprintf(stderr, "Error: Integer overflow for parameter '-%c'.\n", useopt);
-                        return EXIT_FAILURE;
-                    }
+                else if(!get_integer(optarg, &num_threads)){
+                    fprintf(stderr, "Error: Integer overflow for parameter '-%c'.\n", useopt);
+                    return EXIT_FAILURE;
                 }
                 break;
             case '?':
@@ -209,7 +201,7 @@ int main(int argc, char *argv[]) {
     }
 
     if(optind < argc){
-        fprintf(stderr, "Error: Non-option argument '%s' supplied.\n", argv[4]);
+        fprintf(stderr, "Error: Non-option argument '%s' supplied.\n", argv[optind]);
         return EXIT_FAILURE;
     }
     if(sflag != 1){
@@ -249,16 +241,17 @@ int main(int argc, char *argv[]) {
     }
 
     printf("Finding all prime numbers between %d and %d.\n", start, end);
+    
+    int num_values = end - start + 1;
+    if(num_threads > num_values)
+        num_threads = num_values;
+
     if (num_threads == 1){
         printf("%d segment:\n", num_threads);
     }
     else if (num_threads > 1){
         printf("%d segments:\n", num_threads);
     }
-
-    int num_values = end - start + 1;
-    if(num_threads > num_values)
-        num_threads = num_values;
 
     int per_segment = num_values / num_threads;
     int remainder = num_values % num_threads;
@@ -276,15 +269,15 @@ int main(int argc, char *argv[]) {
     int start2 = start;
     for(int i = 0; i < num_threads; i++){
         args[i].start = start2;
+        start2 += (per_segment - 1);
         if(remainder != 0){
             start2++;
             remainder--;
         }
-        start2 += (per_segment - 1);
-        args[i].end = start2;
-        
         if(i == num_threads - 1)
             args[i].end = end;
+        else
+            args[i].end = start2;
 
         printf("   [%d, %d]\n", args[i].start, args[i].end);
         start2++;
